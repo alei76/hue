@@ -19,11 +19,9 @@
 import logging
 import uuid
 
-from django.contrib.auth.models import User
 from django.db.models import Q
-from django.utils.translation import ugettext as _
 
-from desktop.models import Document2, SAMPLE_USERNAME
+from desktop.models import Document2, Document, SAMPLE_USERNAME
 from libsolr.api import SolrApi
 
 from search.conf import SOLR_URL
@@ -41,19 +39,14 @@ class SearchController(object):
     self.user = user
 
   def get_search_collections(self):
-    if self.user.is_superuser:
-      return Document2.objects.filter(type='search-dashboard').order_by('-id')
-    else:
-      return Document2.objects.filter(type='search-dashboard').filter(owner=self.user).order_by('-id')
+    return [d.content_object for d in Document.objects.get_docs(self.user, Document2, extra='search-dashboard').order_by('-id')]
 
   def get_shared_search_collections(self):
-    return Document2.objects.filter(type='search-dashboard').filter(Q(owner=self.user) | Q(owner__in=User.objects.filter(is_superuser=True)) | Q(owner__username=SAMPLE_USERNAME)).order_by('-id')
+    # Those are the ones appearing in the menu
+    return [d.content_object for d in Document.objects.filter(Q(owner=self.user) | Q(owner__username=SAMPLE_USERNAME), extra='search-dashboard').order_by('-id')]
 
   def get_owner_search_collections(self):
-    if self.user.is_superuser:
-      return Document2.objects.filter(type='search-dashboard')
-    else:
-      return Document2.objects.filter(type='search-dashboard').filter(Q(owner=self.user))
+    return [d.content_object for d in Document.objects.get_docs(self.user, Document2, extra='search-dashboard').filter(owner=self.user).order_by('-id')]
 
   def get_icon(self, name):
     if name == 'Twitter':
